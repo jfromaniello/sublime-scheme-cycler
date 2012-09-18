@@ -3,23 +3,31 @@
 
 import sublime
 import sublime_plugin
+import os
 import os.path
-import glob
+# import glob
 
 
 def cycle_scheme(backward=False):
-    schemes_path = os.path.join(
-        sublime.packages_path(),
-        'Color Scheme - Default',
-    )
-    schemes = [
-        os.path.basename(s)
-        for s in glob.glob(os.path.join(schemes_path, '*.tmTheme'))
-    ]
-    schemes.sort()
+    schemes = []
+    for dirpath, dirnames, filenames in os.walk(sublime.packages_path()):
+        for filename in filenames:
+            if os.path.splitext(filename)[1] == ".tmTheme":
+                #the id to search and store in the preferences
+                id = os.path.join(dirpath, filename)[len(sublime.packages_path()) - 8:]
+                #the name without the extension
+                name = os.path.splitext(filename)[0]
+                schemes.append({'id': id, 'name': name})
+
+    schemes = sorted(schemes, key=lambda x: x['name'])
     settings = sublime.load_settings('Preferences.sublime-settings')
-    current_scheme = os.path.basename(settings.get('color_scheme'))
-    scheme_index = schemes.index(current_scheme) + (backward and -1 or 1)
+    current_scheme = settings.get('color_scheme')
+    for index, item in enumerate(schemes):
+        if item['id'] == current_scheme:
+            scheme_index = index
+            break
+    scheme_index += (backward and -1 or 1)
+
     if scheme_index == len(schemes):
         scheme_index = 0
     elif scheme_index == -1:
@@ -27,14 +35,11 @@ def cycle_scheme(backward=False):
     scheme = schemes[scheme_index]
     if not scheme:
         return
-    settings.set(
-        'color_scheme',
-        os.path.join('Packages', 'Color Scheme - Default', scheme),
-    )
+    settings.set('color_scheme', scheme['id'],)
     sublime.save_settings('Preferences.sublime-settings')
 
     sublime.status_message(
-        u'Color Scheme: ' + os.path.splitext(scheme.decode('utf-8'))[0]
+        u'Color Scheme: ' + scheme['name']
     )
 
 
